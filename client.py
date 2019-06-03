@@ -33,3 +33,4 @@ while True:
     frame = vs.read()
     frame = resize(frame, width=res_dim[0], height=res_dim[0])
     sender.send_image(rpi_name, frame)
+    time.sleep(0.1)
