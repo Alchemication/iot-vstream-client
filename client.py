@@ -5,6 +5,9 @@ from imagezmq import imagezmq
 import argparse
 import socket
 import time
+import sys
+import cv2
+import traceback
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
@@ -27,10 +30,31 @@ vs = VideoStream(usePiCamera=True).start()
 time.sleep(1.0)
 
 res_dim = (400, 400)
-print('[INFO] Streaming video at res width {}...'.format(res_dim))
-while True:
-    # read the frame from the camera and send it to the server
-    frame = vs.read()
-    frame = resize(frame, width=res_dim[0], height=res_dim[0])
-    sender.send_image(rpi_name, frame)
-    time.sleep(0.1)
+jpeg_quality = 95
+print('[INFO] Streaming video...')
+try:
+    while True: # send images as stream until Ctrl-C
+
+        # read the frame from the camera
+        frame = vs.read()
+
+        # resize image
+        frame = resize(frame, width=res_dim[0], height=res_dim[0])
+
+        # encode as jpg
+        ret_code, jpg_buffer = cv2.imencode(
+            ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
+        sender.send_jpg(rpi_name, jpg_buffer)
+
+        # keep sleep for testing, but change to 0.0 in prod
+        #time.sleep(2.0)
+        time.sleep(0.0)
+except (KeyboardInterrupt, SystemExit):
+    pass  # Ctrl-C was pressed to end program
+except Exception as ex:
+    print('[ERR] Python error with no Exception handler:')
+    print('[ERR] Traceback error:', ex)
+    traceback.print_exc()
+finally:
+    vs.stop()
+    sys.exit()
