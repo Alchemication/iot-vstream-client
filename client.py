@@ -13,42 +13,52 @@ import traceback
 ap = argparse.ArgumentParser()
 ap.add_argument("-s", "--server-ip", required=True,
     help="ip address of the server to which the client will connect")
+ap.add_argument("-p", "--server-port", required=False, default=5555,
+    help="port of the server to which the client will connect")
+ap.add_argument("-f", "--flip-image", required=False, default='N',
+    help="do we want to flip the image by 180 degrees")
+ap.add_argument("-w", "--res-width", required=False, default=1280,
+    help="resolution width")
+ap.add_argument("-e", "--res-height", required=False, default=720,
+    help="resolution height")
+ap.add_argument("-c", "--jpg-compression", required=False, default=90,
+    help="jpg compression, lower = lower network latency")
 args = vars(ap.parse_args())
- 
-# initialize the ImageSender object with the socket address of the
-# server
-print('[INFO] Connecting to imagezmq server on tcp://{}:5555'.format(args["server_ip"]))
-sender = imagezmq.ImageSender(connect_to="tcp://{}:5555".format(
-   args["server_ip"]))
 
-print('[INFO] Warming up camera sensor...')
-# get the host name, initialize the video stream, and allow the
-# camera sensor to warmup
+# get the host name of the machine
 rpi_name = socket.gethostname()
-vs = VideoStream(usePiCamera=True).start()
-#vs = VideoStream(src=0).start()
-time.sleep(1.0)
 
-res_dim = (400, 400)
-jpeg_quality = 95
-print('[INFO] Streaming video...')
+# initialize the ImageSender object with the socket address of the server
+zmq_url = 'tcp://{}:{}'.format(args["server_ip"], args["server_port"])
+print('[INFO] Connecting {} to imagezmq server on {}...'.format(rpi_name, zmq_url))
+sender = imagezmq.ImageSender(connect_to=zmq_url)
+
+# initialize the video stream, and allow the
+# camera sensor to warmup
+print('[INFO] Warming up camera sensor...')
+res_dim = (args['res_width'], args['res_height'])
+vs = VideoStream(usePiCamera=True, resolution=res_dim).start()
+time.sleep(2.0)
+
+# start streaming images
+print('[INFO] Streaming video at resolution: {}...'.format(res_dim))
 try:
     while True: # send images as stream until Ctrl-C
 
         # read the frame from the camera
         frame = vs.read()
 
-        # resize image
-        frame = resize(frame, width=res_dim[0], height=res_dim[0])
+        # check if image needs to be flipped
+        if args['flip_image'].upper() != 'N':
+            frame = cv2.rotate(frame, rotateCode=cv2.ROTATE_180)
 
         # encode as jpg
         ret_code, jpg_buffer = cv2.imencode(
-            ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
+            ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), args['jpg_compression']])
+        
+        # send to the message queue server
         sender.send_jpg(rpi_name, jpg_buffer)
 
-        # keep sleep for testing, but change to 0.0 in prod
-        #time.sleep(2.0)
-        time.sleep(0.0)
 except (KeyboardInterrupt, SystemExit):
     pass  # Ctrl-C was pressed to end program
 except Exception as ex:
