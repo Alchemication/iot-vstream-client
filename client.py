@@ -17,9 +17,9 @@ ap.add_argument("-p", "--server-port", required=False, default=5555,
     help="port of the server to which the client will connect")
 ap.add_argument("-f", "--flip-image", required=False, default='N',
     help="do we want to flip the image by 180 degrees")
-ap.add_argument("-w", "--res-width", required=False, default=1280,
+ap.add_argument("-w", "--res-width", required=False, default=1920,
     help="resolution width")
-ap.add_argument("-e", "--res-height", required=False, default=720,
+ap.add_argument("-e", "--res-height", required=False, default=1088,
     help="resolution height")
 ap.add_argument("-c", "--jpg-compression", required=False, default=90,
     help="jpg compression, lower = lower network latency")
@@ -36,7 +36,7 @@ sender = imagezmq.ImageSender(connect_to=zmq_url)
 # initialize the video stream, and allow the
 # camera sensor to warmup
 print('[INFO] Warming up camera sensor...')
-res_dim = (args['res_width'], args['res_height'])
+res_dim = (int(args['res_width']), int(args['res_height']))
 vs = VideoStream(usePiCamera=True, resolution=res_dim).start()
 time.sleep(2.0)
 
